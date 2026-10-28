@@ -1,0 +1,34 @@
+{
+  "name": "transaction-ledger-assignment",
+  "version": "1.0.0",
+  "description": "A small, reliable REST API for creating accounts, recording immutable credits and debits, viewing balances and history, and (time permitting) transferring money atomically. This repository is scoped to the supplied Full Stack Developer Assessment; the optional UI is a thin operational demo, not a substitute for the backend requirements.",
+  "type": "module",
+  "main": "dist/server.js",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:migrate:deploy": "prisma migrate deploy"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@prisma/client": "^6.19.3",
+    "dotenv": "^18.0.9",
+    "fastify": "^5.12.7",
+    "fastify-plugin": "^6.0.1",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "prisma": "^6.19.3",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.5"
+  }
+}

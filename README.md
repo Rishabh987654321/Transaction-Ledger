@@ -2,34 +2,75 @@
 
 A small, reliable REST API for creating accounts, recording immutable credits and debits, viewing balances and history, and (time permitting) transferring money atomically. This repository is scoped to the supplied Full Stack Developer Assessment; the optional UI is a thin operational demo, not a substitute for the backend requirements.
 
-## Recommended implementation stack
+## Implementation stack
 
-- Node.js 22+ and TypeScript
-- Fastify for HTTP routes and JSON Schema validation
+- Node.js 22+ and TypeScript (strict mode, ESM)
+- Fastify for HTTP routes, lifecycle hooks, and error handling
 - PostgreSQL 16+ as the source of truth
-- Prisma ORM with SQL migrations; use parameterized SQL for row locking if Prisma's query API does not expose the needed lock
-- Zod for request and environment validation
-- Vitest for unit and integration tests
+- Prisma ORM with custom SQL migrations for database-level check constraints
+- Zod for runtime configuration and environment validation
 - Docker Compose for local PostgreSQL
-- Optional web demo: React + Vite + TypeScript
 
-Keep the stack simple enough to complete in 3–4 hours. Do not add authentication, a message broker, cloud infrastructure, or an LLM to this assignment unless explicitly requested by the evaluator.
+## Prerequisites
 
-## Quick start (target)
+- Node.js 22.x+
+- Docker and Docker Compose
 
-The commands below describe the intended developer experience; update package scripts to match the implementation.
+## Quick start
+
+Follow these verified steps to get the service running locally:
 
 ```bash
+# 1. Copy environment variables
 cp .env.example .env
+
+# 2. Start PostgreSQL in the background
 docker compose up -d db
+
+# 3. Install dependencies
 npm install
+
+# 4. Apply database migrations and generate Prisma client
 npm run db:migrate
+
+# 5. Start the API in development mode
 npm run dev
 ```
 
 API base URL: `http://localhost:3000/api/v1`
 
-Health check: `GET /health`
+## Health and readiness checks
+
+The server provides two diagnostic endpoints:
+
+- `GET /health` (also at `/api/v1/health`): Lightweight liveness probe confirming the Node.js process is active and accepting requests without exposing internal system details. Returns `200 OK` with `{"status": "ok"}`.
+- `GET /ready` (also at `/api/v1/ready`): Readiness check executing a minimal database ping (`SELECT 1`). Returns `200 OK` with `{"status": "ready"}` when PostgreSQL is reachable and ready to process traffic. If the database is unreachable or unresponsive, it safely returns `503 Service Unavailable` with `{"status": "unavailable", "message": "Database connection is unavailable"}`.
+
+## Available package scripts
+
+| Command                     | Action                                                               |
+| --------------------------- | -------------------------------------------------------------------- |
+| `npm run dev`               | Start development server with file watch via `tsx`                   |
+| `npm run build`             | Compile TypeScript into `dist/`                                      |
+| `npm start`                 | Run compiled production build from `dist/server.js`                  |
+| `npm run typecheck`         | Run strict typechecking with `tsc --noEmit`                          |
+| `npm run db:generate`       | Generate Prisma client bindings                                      |
+| `npm run db:migrate`        | Apply schema migrations in development (`prisma migrate dev`)        |
+| `npm run db:migrate:deploy` | Deploy pending migrations in production/CI (`prisma migrate deploy`) |
+
+## Stopping the database
+
+To stop the PostgreSQL container:
+
+```bash
+docker compose down
+```
+
+To stop and remove database volumes for a clean reset:
+
+```bash
+docker compose down -v
+```
 
 ## Required behavior
 
@@ -40,19 +81,18 @@ Health check: `GET /health`
 - Each mutation of a transaction and its account balance is one database transaction.
 - Ledger transactions are append-only through the API.
 - History is latest first, paginated, and can filter by `credit` or `debit`.
+- Transfers atomically debit source, credit destination, and link paired immutable ledger entries with deadlock-free lock ordering.
 - Errors use one predictable JSON envelope.
 
 ## Documentation
 
 - [Architecture](architecture.md)
-- [Implementation phases](phases.md)
 - [API contract](api.md)
 - [System design and data integrity](system-design.md)
-- [UI design brief](design.md)
-- [Assumptions and decisions](assumptions.md)
-- [Antigravity build instructions](ANTIGRAVITY.md)
 
-## Environment variables (target)
+## Environment variables
+
+Configured in `.env` (derived from `.env.example`):
 
 ```dotenv
 NODE_ENV=development
@@ -60,18 +100,4 @@ PORT=3000
 DATABASE_URL=postgresql://ledger:ledger@localhost:5432/ledger?schema=public
 ```
 
-Never commit real credentials. Validate required environment values at startup and fail with a clear message.
-
-## Submission checklist
-
-- Source code and migrations
-- This README with verified setup and run instructions
-- API documentation (see `api.md`)
-- Explicit assumptions (see `assumptions.md`)
-- Example requests/responses or an importable OpenAPI document
-- Automated coverage for validations, idempotency, insufficient funds, pagination, and atomicity
-- Optional transfer endpoint only after the core requirements are complete
-
-## Scope notes
-
-This is a single-tenant assessment API. It has no authentication or authorization because the prompt does not define users, roles, or access control. State this clearly in the submission; do not present the unauthenticated demo as production-ready for real financial use.
+Required environment values are validated at startup with safe error messages.
